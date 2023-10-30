@@ -114,9 +114,9 @@ def create_entity(api_url, **kwargs):
         "metadata": ["organization=ACME Inc.","team=QA"],
         "name": enitity_name
     }
-    enitity_response = requests.put(api_url + "/v1/identity/entity", headers=headers)
+    enitity_response = requests.put(api_url + "/v1/identity/entity", headers=headers, json=data)
     enitity_data = json.loads(enitity_response.text)
-    print("hello:" + str(enitity_data)) 
+    print("enitity_data:" + str(enitity_data)) 
     entity_id = enitity_data.get('data').get('id')
     print("Entity ID:" + entity_id) 
     kwargs['ti'].xcom_push(key='entity_id', value=entity_id)
@@ -125,17 +125,19 @@ def alias_users(api_url, **kwargs):
     headers = {
         "X-Vault-Token": vault_token,  # Replace with your actual token value
     }
-    enitity_name = f"entity_{str(uuid.uuid4())[:8]}"
-    data = {
-        "metadata": ["organization=ACME Inc.","team=QA"],
-        "name": enitity_name
-    }
-    enitity_response = requests.put(api_url + "/v1/identity/entity", headers=headers)
-    enitity_data = json.loads(enitity_response.text)
-    print("hello:" + str(enitity_data)) 
-    entity_id = enitity_data.get('data').get('id')
-    print("Entity ID:" + entity_id) 
-    kwargs['ti'].xcom_push(key='entity_id', value=entity_id)
+    user_data = kwargs['ti'].xcom_pull(task_ids='generate_user_task', key='user_data')
+    for user in user_data:
+        data = {
+            "canonical_id": kwargs['ti'].xcom_pull(task_ids='create_entity_task', key='entity_id'),
+            "mount_accessor": kwargs['ti'].xcom_pull(task_ids='get_auth_accessor_task', key='accessor_value'),
+            "name": user['username']
+        }
+        print("create_alias_data:" + str(data))
+        alias_response = requests.put(api_url + "/v1/identity/entity-alias", headers=headers, json=data)
+        alias_data = json.loads(alias_response.text)
+        print("alias_data:" + str(alias_data))
+
+
 
 # Define the DAG
 default_args = {
@@ -206,11 +208,9 @@ alias_users_task = PythonOperator(
     dag=dag,
 )
 
-
-
-# Task : Get a client count
-get_final_client_count_task = PythonOperator(
-    task_id='get_final_client_count_task',
+# Task 7: Get a client count
+get_client_count_after_alias_task = PythonOperator(
+    task_id='get_client_count_after_alias',
     python_callable=get_client_count,
     provide_context=True,
     op_args=[api_url],  # Provide the URL as an argument
@@ -218,7 +218,7 @@ get_final_client_count_task = PythonOperator(
 )
 
 # Set task dependencies
-generate_user_task >> login_task >> get_client_count_task >> get_auth_accessor_task >> create_entity_task >> get_final_client_count_task
+generate_user_task >> login_task >> get_client_count_task >> get_auth_accessor_task >> create_entity_task >> alias_users_task >> get_client_count_after_alias_task
 
 if __name__ == "__main__":
     dag.cli()

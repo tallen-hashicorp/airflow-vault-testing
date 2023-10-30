@@ -50,4 +50,11 @@ vault write -output-curl-string identity/entity name="bob-smith" policies="base"
      metadata=team="QA" 
 
 curl -X PUT -H "X-Vault-Request: true" -H "X-Vault-Token: $(vault print token)" -d '{"metadata":["organization=ACME Inc.","team=QA"],"name":"bob-smith","policies":"base"}' http://127.0.0.1:8200/v1/identity/entity
+
+vault write -output-curl-string identity/entity-alias name="bob" \
+     canonical_id=$(cat entity_id.txt) \
+     mount_accessor=$(cat accessor_test.txt) \
+     custom_metadata=account="Tester Account"
+
+curl -X PUT -H "X-Vault-Token: $(vault print token)" -H "X-Vault-Request: true" -d '{"canonical_id":"","custom_metadata":"account=Tester Account","mount_accessor":"","name":"bob"}' http://127.0.0.1:8200/v1/identity/entity-alias
 ```
