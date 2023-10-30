@@ -14,7 +14,6 @@ api_url = Variable.get("api_url", default_var="http://host.docker.internal:8200"
 vault_token = Variable.get("vault_token", default_var="hvs.6EGo6BeynAIJQeTu0VdBb7mh")
 num_users = Variable.get("num_users", default_var=100)
 
-# Task 1: Generate a user via an API
 def generate_user(api_url, **kwargs):
     headers = {
         "X-Vault-Token": vault_token,  # Replace with your actual token value
@@ -47,7 +46,7 @@ def generate_user(api_url, **kwargs):
     kwargs['ti'].xcom_push(key='user_data', value=users_data)
     return users_data
 
-# Task 2: Login as the user (multiple times)
+
 def login_as_user(api_url, **kwargs):
     user_data = kwargs['ti'].xcom_pull(task_ids='generate_user_task', key='user_data')
     for user in user_data:
@@ -84,7 +83,6 @@ def login_as_user(api_url, **kwargs):
         else:
             print("User generation failed.")
 
-# Task 3: Get a client count
 def get_client_count(api_url, **kwargs):
     headers = {
         "X-Vault-Token": vault_token,  # Replace with your actual token value
