@@ -9,13 +9,15 @@ import time
 # Define the number of login iterations as a parameter
 from airflow.models import Variable
 
-num_users = 100
-
+# Define the API URL as a parameter
+api_url = Variable.get("api_url", default_var="http://host.docker.internal:8200")
+vault_token = Variable.get("vault_token", default_var="hvs.6EGo6BeynAIJQeTu0VdBb7mh")
+num_users = Variable.get("num_users", default_var=100)
 
 # Task 1: Generate a user via an API
 def generate_user(api_url, **kwargs):
     users_data = []
-    for _ in range(num_users):
+    for _ in range(int(num_users)):
         unique_username = f"user_{str(uuid.uuid4())[:8]}"  # Generate a unique username
         unique_password = f"password_{str(uuid.uuid4())[:8]}"  # Generate a unique password
         users_data.append({"username": unique_username, "password": unique_password})
@@ -94,6 +96,47 @@ def get_client_count(api_url, **kwargs):
     else:
         print("Failed to get client count")
 
+def get_auth_accessor(api_url, **kwargs):
+    headers = {
+        "X-Vault-Token": vault_token,  # Replace with your actual token value
+    }
+    auth_response = requests.get(api_url + "/v1/sys/auth", headers=headers)
+    auth_data = json.loads(auth_response.text)
+    accessor_value = auth_data.get("userpass/").get("accessor", None)
+    kwargs['ti'].xcom_push(key='accessor_value', value=accessor_value)
+
+def create_entity(api_url, **kwargs):
+    headers = {
+        "X-Vault-Token": vault_token,  # Replace with your actual token value
+    }
+    enitity_name = f"entity_{str(uuid.uuid4())[:8]}"
+    data = {
+        "metadata": ["organization=ACME Inc.","team=QA"],
+        "name": enitity_name
+    }
+    enitity_response = requests.put(api_url + "/v1/identity/entity", headers=headers)
+    enitity_data = json.loads(enitity_response.text)
+    print("hello:" + str(enitity_data)) 
+    entity_id = enitity_data.get('data').get('id')
+    print("Entity ID:" + entity_id) 
+    kwargs['ti'].xcom_push(key='entity_id', value=entity_id)
+
+def alias_users(api_url, **kwargs):
+    headers = {
+        "X-Vault-Token": vault_token,  # Replace with your actual token value
+    }
+    enitity_name = f"entity_{str(uuid.uuid4())[:8]}"
+    data = {
+        "metadata": ["organization=ACME Inc.","team=QA"],
+        "name": enitity_name
+    }
+    enitity_response = requests.put(api_url + "/v1/identity/entity", headers=headers)
+    enitity_data = json.loads(enitity_response.text)
+    print("hello:" + str(enitity_data)) 
+    entity_id = enitity_data.get('data').get('id')
+    print("Entity ID:" + entity_id) 
+    kwargs['ti'].xcom_push(key='entity_id', value=entity_id)
+
 # Define the DAG
 default_args = {
     'owner': 'airflow',
@@ -108,10 +151,6 @@ dag = DAG(
     schedule_interval=None,  # This DAG is triggered manually (adhoc)
     catchup=False,
 )
-
-# Define the API URL as a parameter
-api_url = Variable.get("api_url", default_var="http://host.docker.internal:8200")
-vault_token = Variable.get("vault_token", default_var="hvs.6EGo6BeynAIJQeTu0VdBb7mh")
 
 # Task 1: Generate a user
 generate_user_task = PythonOperator(
@@ -140,8 +179,46 @@ get_client_count_task = PythonOperator(
     dag=dag,
 )
 
+# Task 4: Get Accessor
+get_auth_accessor_task = PythonOperator(
+    task_id='get_auth_accessor_task',
+    python_callable=get_auth_accessor,
+    provide_context=True,
+    op_args=[api_url],  # Provide the URL as an argument
+    dag=dag,
+)
+
+# Task 5: Create Entity
+create_entity_task = PythonOperator(
+    task_id='create_entity_task',
+    python_callable=create_entity,
+    provide_context=True,
+    op_args=[api_url],  # Provide the URL as an argument
+    dag=dag,
+)
+
+# Task 6: Alias all the users
+alias_users_task = PythonOperator(
+    task_id='alias_users_task',
+    python_callable=alias_users,
+    provide_context=True,
+    op_args=[api_url],  # Provide the URL as an argument
+    dag=dag,
+)
+
+
+
+# Task : Get a client count
+get_final_client_count_task = PythonOperator(
+    task_id='get_final_client_count_task',
+    python_callable=get_client_count,
+    provide_context=True,
+    op_args=[api_url],  # Provide the URL as an argument
+    dag=dag,
+)
+
 # Set task dependencies
-generate_user_task >> login_task >> get_client_count_task
+generate_user_task >> login_task >> get_client_count_task >> get_auth_accessor_task >> create_entity_task >> get_final_client_count_task
 
 if __name__ == "__main__":
     dag.cli()
