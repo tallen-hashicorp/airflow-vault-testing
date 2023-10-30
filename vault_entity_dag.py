@@ -30,36 +30,35 @@ def generate_user(api_url, **kwargs):
     print("Body: " + response.text)
 
 # Task 2: Login as the user (multiple times)
-def login_as_user(api_url, num_iterations, **kwargs):
+def login_as_user(api_url, **kwargs):
     user_id = kwargs['ti'].xcom_pull(task_ids='generate_user_task', key='username')
     user_password = kwargs['ti'].xcom_pull(task_ids='generate_user_task', key='password')
     headers = {
         "X-Vault-Token": vault_token,  # Replace with your actual token value
     }
     if user_id:
-        for _ in range(num_iterations):
-            login_data = {"password": user_password}
-            response = requests.put(api_url + "/v1/auth/userpass/login/" + user_id, json=login_data, headers=headers)
-            print("Body: " + response.text)
+        login_data = {"password": user_password}
+        response = requests.put(api_url + "/v1/auth/userpass/login/" + user_id, json=login_data, headers=headers)
+        print("Body: " + response.text)
+        if response.status_code == 200:
+            print(f"Login successful for user {user_id}")
+            response_data = json.loads(response.text)
+            client_token = response_data['auth']['client_token']
+            print("Client Token:", client_token)
+            kv_data = {
+                "data":{"owner":user_id},
+                "options":{}
+            }
+            kv_headers = {
+                "X-Vault-Token": client_token,  # Replace with your actual token value
+            }
+            response = requests.put(api_url + "/v1/secret/data/test", json=kv_data, headers=kv_headers)
             if response.status_code == 200:
-                print(f"Login successful for user {user_id}")
-                response_data = json.loads(response.text)
-                client_token = response_data['auth']['client_token']
-                print("Client Token:", client_token)
-                kv_data = {
-                    "data":{"owner":user_id},
-                    "options":{}
-                }
-                kv_headers = {
-                    "X-Vault-Token": client_token,  # Replace with your actual token value
-                }
-                response = requests.put(api_url + "/v1/secret/data/test", json=kv_data, headers=kv_headers)
-                if response.status_code == 200:
-                    print(f"KV secret created for user {user_id}")
-                else:
-                    print(f"Failed to create KV secret for user {user_id}")
+                print(f"KV secret created for user {user_id}")
             else:
-                print(f"Login failed for user {user_id}")
+                print(f"Failed to create KV secret for user {user_id}")
+        else:
+            print(f"Login failed for user {user_id}")
     else:
         print("User generation failed.")
 
@@ -119,7 +118,7 @@ login_task = PythonOperator(
     task_id='login_task',
     python_callable=login_as_user,
     provide_context=True,
-    op_args=[api_url, 1],  # Provide the URL and num_iterations as arguments
+    op_args=[api_url],  # Provide the URL and num_iterations as arguments
     dag=dag,
 )
 
