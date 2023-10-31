@@ -11,7 +11,7 @@ from airflow.models import Variable
 
 # Define the API URL as a parameter
 api_url = Variable.get("api_url", default_var="http://host.docker.internal:8200")
-vault_token = Variable.get("vault_token", default_var="hvs.6EGo6BeynAIJQeTu0VdBb7mh")
+vault_token = Variable.get("vault_token", default_var="hvs")
 num_users = Variable.get("num_users", default_var=100)
 
 def generate_user(api_url, **kwargs):
