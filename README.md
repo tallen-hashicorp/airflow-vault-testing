@@ -39,7 +39,7 @@ airflow dags trigger vault_entity_dag
 ## Notes
 ```bash
 curl \
-    --header "X-Vault-Token: hvs.6EGo6BeynAIJQeTu0VdBb7mh" \
+    --header "X-Vault-Token: hvs." \
     --request GET \
     http://127.0.0.1:8200/v1/sys/internal/counters/activity/export?start_time=1696973350&end_time=1698701350
 
