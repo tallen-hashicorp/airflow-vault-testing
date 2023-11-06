@@ -24,7 +24,7 @@ vault kv put secret/test owner="bob"
 
 ## Runing DAG
 ```bash
-docker cp vault_entity_dag.py af:/opt/airflow/dags/
+docker cp vault_entity_after_user_dag.py af:/opt/airflow/dags/
 docker exec -ti af bash
 
 airflow variables set api_url "http://host.docker.internal:8200"
@@ -32,7 +32,7 @@ airflow variables set vault_token "hvs.6"
 airflow variables set num_users 100
 
 airflow dags list
-airflow dags trigger vault_entity_dag
+airflow dags trigger vault_entity_after_user_dag
 ```
 
 

@@ -153,7 +153,7 @@ default_args = {
 }
 
 dag = DAG(
-    'vault_entity_dag',
+    dag_id='vault_entity_after_user_dag',
     default_args=default_args,
     description='DAG to login as admin, generate a user, log in multiple times, and get a client count',
     schedule_interval=None,  # This DAG is triggered manually (adhoc)
@@ -251,6 +251,7 @@ print_output_task = PythonOperator(
 
 # Set task dependencies
 get_starting_count_task >> generate_user_task >> login_task >> get_client_count_task >> create_entity_task >> alias_users_task >> get_client_count_after_alias_task >> login_after_alias_task >> get_client_count_after_alias_login >> print_output_task
+# get_starting_count_task >> generate_user_task >> login_task >> get_client_count_task >> create_entity_task >> alias_users_task >> get_client_count_after_alias_task >> login_after_alias_task >> get_client_count_after_alias_login >> print_output_task
 
 if __name__ == "__main__":
     dag.cli()
