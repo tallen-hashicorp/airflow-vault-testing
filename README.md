@@ -32,6 +32,7 @@ airflow variables set vault_token "hvs.6"
 airflow variables set num_users 100
 
 airflow dags list
+airflow dags reserialize
 airflow dags trigger vault_entity_after_user_dag
 ```
 
